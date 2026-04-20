@@ -24,5 +24,15 @@ localPort = 8080
 externalPort = 8080
 
 [[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
 localPort = 22948
 externalPort = 80
+
+[userenv]
+
+[userenv.shared]
+INSTAGRAM_SESSION_ID = "54526851120:x7p3A1KjNUwcLr:22:AYggBw4pDol3FaORrv0uMIQWmKnbr1l1bVS-mtzeeg"
+INSTAGRAM_DS_USER_ID = "54526851120"
