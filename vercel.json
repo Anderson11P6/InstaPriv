@@ -1,1 +1,20 @@
-{"functions":{"api":"artifacts/api-server"}}
+{
+  "version": 2,
+  "buildCommand": "pnpm run build",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "functions": {
+    "artifacts/api-server/dist/index.mjs": {
+      "runtime": "nodejs20.x"
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "artifacts/api-server/dist/index.mjs"
+    },
+    {
+      "src": "/(.*)",
+      "status": 404
+    }
+  ]
+}
