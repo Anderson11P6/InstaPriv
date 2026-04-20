@@ -7,6 +7,11 @@ interface CheckResult {
   status: CheckStatus;
   displayName?: string;
   profilePic?: string;
+  followers?: number | null;
+  following?: number | null;
+  posts?: number | null;
+  isVerified?: boolean;
+  biography?: string | null;
 }
 
 function InstagramIcon({ className }: { className?: string }) {
@@ -66,6 +71,21 @@ function AlertIcon({ className }: { className?: string }) {
   );
 }
 
+function VerifiedIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm-1.293 14.707l-3.414-3.414 1.414-1.414 2 2 4.586-4.586 1.414 1.414-6 6z"/>
+    </svg>
+  );
+}
+
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+  if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
+  return n.toLocaleString("pt-BR");
+}
+
 async function checkInstagramAccount(username: string): Promise<CheckResult> {
   const cleanUsername = username.replace(/^@/, "").trim().toLowerCase();
 
@@ -79,7 +99,7 @@ async function checkInstagramAccount(username: string): Promise<CheckResult> {
 
   const response = await fetch(
     `/api/instagram/check?username=${encodeURIComponent(cleanUsername)}`,
-    { signal: AbortSignal.timeout(15000) }
+    { signal: AbortSignal.timeout(20000) }
   );
 
   if (!response.ok) {
@@ -92,6 +112,11 @@ async function checkInstagramAccount(username: string): Promise<CheckResult> {
     username: string;
     displayName?: string;
     profilePic?: string;
+    followers?: number | null;
+    following?: number | null;
+    posts?: number | null;
+    isVerified?: boolean;
+    biography?: string | null;
   };
 
   return {
@@ -99,7 +124,138 @@ async function checkInstagramAccount(username: string): Promise<CheckResult> {
     status: data.status,
     displayName: data.displayName,
     profilePic: data.profilePic,
+    followers: data.followers,
+    following: data.following,
+    posts: data.posts,
+    isVerified: data.isVerified,
+    biography: data.biography,
   };
+}
+
+function StatBox({ label, value }: { label: string; value: number | null | undefined }) {
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <span className="font-bold text-gray-900 text-base leading-tight">
+        {value != null ? formatCount(value) : "—"}
+      </span>
+      <span className="text-xs text-gray-500">{label}</span>
+    </div>
+  );
+}
+
+function ProfileCard({ result, accent }: { result: CheckResult; accent: "emerald" | "amber" }) {
+  const colors = {
+    emerald: {
+      headerBg: "bg-emerald-50",
+      border: "border-emerald-100",
+      divider: "border-emerald-100",
+      badge: "bg-emerald-100 text-emerald-700",
+      dot: "bg-emerald-500",
+      icon: "bg-emerald-500",
+      title: "text-emerald-800",
+      sub: "text-emerald-600",
+      statBorder: "border-emerald-100",
+    },
+    amber: {
+      headerBg: "bg-amber-50",
+      border: "border-amber-100",
+      divider: "border-amber-100",
+      badge: "bg-amber-100 text-amber-700",
+      dot: "bg-amber-500",
+      icon: "bg-amber-500",
+      title: "text-amber-800",
+      sub: "text-amber-600",
+      statBorder: "border-amber-100",
+    },
+  }[accent];
+
+  const isPublic = accent === "emerald";
+
+  return (
+    <div className={`bg-white rounded-2xl shadow-md border ${colors.border} overflow-hidden`}>
+      <div className={`${colors.headerBg} px-5 py-4 flex items-center gap-3 border-b ${colors.divider}`}>
+        <div className={`w-9 h-9 rounded-full ${colors.icon} flex items-center justify-center shadow-sm flex-shrink-0`}>
+          {isPublic ? <GlobeIcon className="w-4 h-4 text-white" /> : <LockIcon className="w-4 h-4 text-white" />}
+        </div>
+        <div>
+          <p className={`font-bold ${colors.title} text-sm`}>
+            {isPublic ? "Conta Pública" : "Conta Privada"}
+          </p>
+          <p className={`${colors.sub} text-xs`}>
+            {isPublic ? "Qualquer pessoa pode ver o perfil" : "Somente seguidores aprovados podem ver"}
+          </p>
+        </div>
+        <div className="ml-auto">
+          <span className={`inline-flex items-center gap-1.5 ${colors.badge} text-xs font-semibold px-3 py-1 rounded-full`}>
+            {isPublic
+              ? <><span className={`w-1.5 h-1.5 rounded-full ${colors.dot} inline-block`}></span>PÚBLICA</>
+              : <><LockIcon className="w-2.5 h-2.5" />PRIVADA</>
+            }
+          </span>
+        </div>
+      </div>
+
+      <div className="px-5 pt-5 pb-4">
+        <div className="flex items-center gap-4">
+          {result.profilePic ? (
+            <img
+              src={result.profilePic}
+              alt={result.username}
+              className={`w-16 h-16 rounded-full object-cover border-2 ${colors.border} flex-shrink-0`}
+              onError={(e) => {
+                const img = e.target as HTMLImageElement;
+                img.style.display = "none";
+                if (img.nextElementSibling) (img.nextElementSibling as HTMLElement).style.display = "flex";
+              }}
+            />
+          ) : null}
+          <div
+            className="w-16 h-16 rounded-full instagram-gradient flex items-center justify-center flex-shrink-0"
+            style={{ display: result.profilePic ? "none" : "flex" }}
+          >
+            <span className="text-white font-bold text-2xl uppercase">{result.username[0]}</span>
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {result.displayName && result.displayName !== result.username && (
+                <p className="font-bold text-gray-900 text-base truncate">{result.displayName}</p>
+              )}
+              {result.isVerified && (
+                <VerifiedIcon className="w-4 h-4 text-blue-500 flex-shrink-0" />
+              )}
+            </div>
+            <p className="text-gray-500 text-sm">@{result.username}</p>
+            <a
+              href={`https://instagram.com/${result.username}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 mt-1 transition-colors font-medium"
+            >
+              Ver no Instagram
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        {result.biography && (
+          <p className="mt-3 text-xs text-gray-600 leading-relaxed line-clamp-3 border-t border-gray-100 pt-3">
+            {result.biography}
+          </p>
+        )}
+
+        {(result.followers != null || result.following != null || result.posts != null) && (
+          <div className={`mt-4 pt-4 border-t ${colors.statBorder} grid grid-cols-3 gap-2 text-center`}>
+            <StatBox label="Publicações" value={result.posts} />
+            <StatBox label="Seguidores" value={result.followers} />
+            <StatBox label="Seguindo" value={result.following} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function Home() {
@@ -215,108 +371,25 @@ export default function Home() {
         {result && status !== "loading" && (
           <div className="mt-4 result-enter">
             {status === "public" && (
-              <div className="bg-white rounded-2xl shadow-md border border-emerald-100 overflow-hidden">
-                <div className="bg-emerald-50 px-6 py-4 flex items-center gap-3 border-b border-emerald-100">
-                  <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center shadow-sm flex-shrink-0">
-                    <GlobeIcon className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-emerald-800 text-base">Conta Pública</p>
-                    <p className="text-emerald-600 text-xs">Qualquer pessoa pode ver o perfil</p>
-                  </div>
-                  <div className="ml-auto">
-                    <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 text-xs font-semibold px-3 py-1 rounded-full">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
-                      PÚBLICA
-                    </span>
-                  </div>
-                </div>
-                <div className="px-6 py-5 flex items-center gap-4">
-                  {result.profilePic ? (
-                    <img
-                      src={result.profilePic}
-                      alt={result.username}
-                      className="w-14 h-14 rounded-full object-cover border-2 border-emerald-200 flex-shrink-0"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                    />
-                  ) : (
-                    <div className="w-14 h-14 rounded-full instagram-gradient flex items-center justify-center flex-shrink-0">
-                      <span className="text-white font-bold text-xl uppercase">{result.username[0]}</span>
-                    </div>
-                  )}
-                  <div className="min-w-0">
-                    {result.displayName && result.displayName !== result.username && (
-                      <p className="font-semibold text-gray-900 truncate">{result.displayName}</p>
-                    )}
-                    <p className="text-gray-500 text-sm">@{result.username}</p>
-                    <a
-                      href={`https://instagram.com/${result.username}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 mt-1 transition-colors font-medium"
-                    >
-                      Ver perfil no Instagram
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/>
-                      </svg>
-                    </a>
-                  </div>
-                </div>
-              </div>
+              <ProfileCard result={result} accent="emerald" />
             )}
 
             {status === "private" && (
-              <div className="bg-white rounded-2xl shadow-md border border-amber-100 overflow-hidden">
-                <div className="bg-amber-50 px-6 py-4 flex items-center gap-3 border-b border-amber-100">
-                  <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center shadow-sm flex-shrink-0">
-                    <LockIcon className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-amber-800 text-base">Conta Privada</p>
-                    <p className="text-amber-600 text-xs">Somente seguidores aprovados podem ver</p>
-                  </div>
-                  <div className="ml-auto">
-                    <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1 rounded-full">
-                      <LockIcon className="w-2.5 h-2.5" />
-                      PRIVADA
-                    </span>
-                  </div>
-                </div>
-                <div className="px-6 py-5 flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                    <LockIcon className="w-6 h-6 text-gray-400" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">@{result.username}</p>
-                    <p className="text-gray-500 text-sm mt-0.5">Esta conta é privada</p>
-                    <a
-                      href={`https://instagram.com/${result.username}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 mt-1 transition-colors font-medium"
-                    >
-                      Ver no Instagram
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/>
-                      </svg>
-                    </a>
-                  </div>
-                </div>
-              </div>
+              <ProfileCard result={result} accent="amber" />
             )}
 
             {status === "not-found" && (
               <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
-                <div className="bg-gray-50 px-6 py-4 flex items-center gap-3 border-b border-gray-100">
-                  <div className="w-10 h-10 rounded-full bg-gray-400 flex items-center justify-center shadow-sm flex-shrink-0">
-                    <UserXIcon className="w-5 h-5 text-white" />
+                <div className="bg-gray-50 px-5 py-4 flex items-center gap-3 border-b border-gray-100">
+                  <div className="w-9 h-9 rounded-full bg-gray-400 flex items-center justify-center shadow-sm flex-shrink-0">
+                    <UserXIcon className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                    <p className="font-bold text-gray-700 text-base">Conta Não Encontrada</p>
+                    <p className="font-bold text-gray-700 text-sm">Conta Não Encontrada</p>
                     <p className="text-gray-500 text-xs">Esse usuário não existe no Instagram</p>
                   </div>
                 </div>
-                <div className="px-6 py-4">
+                <div className="px-5 py-4">
                   <p className="text-sm text-gray-500">
                     Nenhuma conta encontrada para <span className="font-semibold text-gray-700">@{result.username}</span>.
                     Verifique se o nome de usuário está correto.
@@ -327,16 +400,16 @@ export default function Home() {
 
             {status === "rate-limited" && (
               <div className="bg-white rounded-2xl shadow-md border border-orange-100 overflow-hidden">
-                <div className="bg-orange-50 px-6 py-4 flex items-center gap-3 border-b border-orange-100">
-                  <div className="w-10 h-10 rounded-full bg-orange-400 flex items-center justify-center shadow-sm flex-shrink-0">
-                    <AlertIcon className="w-5 h-5 text-white" />
+                <div className="bg-orange-50 px-5 py-4 flex items-center gap-3 border-b border-orange-100">
+                  <div className="w-9 h-9 rounded-full bg-orange-400 flex items-center justify-center shadow-sm flex-shrink-0">
+                    <AlertIcon className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                    <p className="font-bold text-orange-800 text-base">Limite atingido</p>
+                    <p className="font-bold text-orange-800 text-sm">Limite atingido</p>
                     <p className="text-orange-600 text-xs">O Instagram limitou as consultas temporariamente</p>
                   </div>
                 </div>
-                <div className="px-6 py-4">
+                <div className="px-5 py-4">
                   <p className="text-sm text-gray-500">
                     O Instagram está limitando as consultas agora. Aguarde alguns minutos e tente novamente.
                   </p>

@@ -122,6 +122,12 @@ router.get("/instagram/check", async (req, res) => {
           is_private?: boolean;
           full_name?: string;
           profile_pic_url?: string;
+          profile_pic_url_hd?: string;
+          edge_followed_by?: { count: number };
+          edge_follow?: { count: number };
+          edge_owner_to_timeline_media?: { count: number };
+          is_verified?: boolean;
+          biography?: string;
         } | null;
       };
     };
@@ -145,7 +151,12 @@ router.get("/instagram/check", async (req, res) => {
       status: user.is_private ? "private" : "public",
       username,
       displayName: user.full_name || username,
-      profilePic: user.profile_pic_url || null,
+      profilePic: user.profile_pic_url_hd || user.profile_pic_url || null,
+      followers: user.edge_followed_by?.count ?? null,
+      following: user.edge_follow?.count ?? null,
+      posts: user.edge_owner_to_timeline_media?.count ?? null,
+      isVerified: user.is_verified ?? false,
+      biography: user.biography || null,
     });
   } catch (err: unknown) {
     req.log.error({ err, username }, "Error checking Instagram account");
